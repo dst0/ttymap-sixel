@@ -12,11 +12,17 @@ use ratatui::style::Color;
 use ratatui::widgets::Widget;
 use ttymap_engine::map::render::frame::MapFrame;
 
-pub struct MapFrameWidget<'a>(pub &'a MapFrame);
+pub struct MapFrameWidget<'a> {
+    pub frame: &'a MapFrame,
+    pub enabled: bool,
+}
 
 impl<'a> Widget for MapFrameWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let frame = self.0;
+        if !self.enabled {
+            return;
+        }
+        let frame = self.frame;
         let draw_cols = frame.cols.min(area.width);
         let draw_rows = frame.rows.min(area.height);
 
@@ -79,8 +85,35 @@ mod tests {
         };
         let area = Rect::new(0, 0, 2, 1);
         let mut buf = Buffer::empty(area);
-        MapFrameWidget(&frame).render(area, &mut buf);
+        MapFrameWidget {
+            frame: &frame,
+            enabled: true,
+        }
+        .render(area, &mut buf);
         assert_eq!(buf[(0, 0)].symbol(), "A");
         assert_eq!(buf[(1, 0)].symbol(), "B");
+    }
+
+    #[test]
+    fn disabled_widget_leaves_buffer_untouched() {
+        let frame = MapFrame {
+            cells: vec![MapCell {
+                ch: 'A',
+                fg: 1,
+                bg: 0,
+            }],
+            cols: 1,
+            rows: 1,
+            center: ttymap_engine::geo::LonLat { lon: 0.0, lat: 0.0 },
+            zoom: 0.0,
+        };
+        let area = Rect::new(0, 0, 1, 1);
+        let mut buf = Buffer::empty(area);
+        MapFrameWidget {
+            frame: &frame,
+            enabled: false,
+        }
+        .render(area, &mut buf);
+        assert_eq!(buf[(0, 0)].symbol(), " ");
     }
 }

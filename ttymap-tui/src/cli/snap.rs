@@ -5,7 +5,7 @@
 //! mpsc channels. A simple fetch-aware loop drives `pipeline.render`
 //! and `pipeline.poll_tiles` until all visible tiles have arrived (or
 //! the timeout hits), then serialises the final frame through
-//! [`MapFrame::to_ansi`] and writes to stdout or a file.
+//! either ANSI text or sixel bytes and writes to stdout or a file.
 
 use std::fs;
 use std::io::{self, Write};
@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 use clap::Args;
 
 use crate::config;
+use crate::terminal_graphics::{SnapshotFormat, frame_to_sixel, terminal_cell_pixel_size};
 use crate::theme::ThemeId;
 use ttymap_engine::map::Viewport;
 use ttymap_engine::map::render::frame::MapFrame;
@@ -65,6 +66,10 @@ pub struct SnapArgs {
     /// Write the ANSI output to this file instead of stdout.
     #[arg(long, short)]
     pub output: Option<PathBuf>,
+
+    /// Snapshot output format.
+    #[arg(long, value_enum, default_value_t = SnapshotFormat::Ansi)]
+    pub format: SnapshotFormat,
 
     /// Give up after this many milliseconds if tiles never finish
     /// loading.
@@ -138,11 +143,14 @@ pub fn run(args: SnapArgs) -> Result<(), Box<dyn std::error::Error>> {
         &map.viewport(),
         Duration::from_millis(args.timeout_ms),
     )?;
-    let ansi = frame.to_ansi();
+    let output = match args.format {
+        SnapshotFormat::Ansi => frame.to_ansi(),
+        SnapshotFormat::Sixel => frame_to_sixel(&frame, terminal_cell_pixel_size()),
+    };
 
     match args.output {
-        Some(path) => fs::write(&path, ansi)?,
-        None => io::stdout().write_all(ansi.as_bytes())?,
+        Some(path) => fs::write(&path, output)?,
+        None => io::stdout().write_all(output.as_bytes())?,
     }
     Ok(())
 }
