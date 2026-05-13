@@ -104,7 +104,7 @@ pub fn terminal_supports_sixel() -> bool {
 pub fn terminal_supports_sixel_env(
     term: Option<&str>,
     term_program: Option<&str>,
-    xterm_version: Option<&str>,
+    _xterm_version: Option<&str>,
 ) -> bool {
     let term = term.unwrap_or_default().to_ascii_lowercase();
     let term_program = term_program.unwrap_or_default().to_ascii_lowercase();
@@ -119,7 +119,6 @@ pub fn terminal_supports_sixel_env(
             term_program.as_str(),
             "wezterm" | "iterm.app" | "mintty" | "mlterm" | "contour" | "foot"
         )
-        || (term.starts_with("xterm-sixel") && xterm_version.is_some())
 }
 
 pub fn terminal_cell_pixel_size() -> CellPixelSize {
