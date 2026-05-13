@@ -63,7 +63,7 @@ pub struct SnapArgs {
     #[arg(long)]
     pub language: Option<String>,
 
-    /// Write the ANSI output to this file instead of stdout.
+    /// Write the snapshot output to this file instead of stdout.
     #[arg(long, short)]
     pub output: Option<PathBuf>,
 

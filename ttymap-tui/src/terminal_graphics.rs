@@ -358,9 +358,11 @@ fn fill_rect(
 
 fn braille_bits(ch: char) -> Option<u8> {
     let code = ch as u32;
-    (0x2800..=0x28ff)
-        .contains(&code)
-        .then_some((code - 0x2800) as u8)
+    if (0x2800..=0x28ff).contains(&code) {
+        Some((code - 0x2800) as u8)
+    } else {
+        None
+    }
 }
 
 fn rgb_to_percent(v: u8) -> u8 {
@@ -441,7 +443,7 @@ mod tests {
         MapFrame {
             cells: vec![
                 MapCell {
-                    ch: '\u{28ff}',
+                    ch: '\u{2801}',
                     fg: 9,
                     bg: 0,
                 },
