@@ -13,7 +13,7 @@ pub mod snap;
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Render a single map snapshot as ANSI text (headless).
+    /// Render a single map snapshot as ANSI text or sixel (headless).
     #[command(alias = "snapshot")]
     Snap(snap::SnapArgs),
 

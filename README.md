@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Kohei-Wada/ttymap/actions/workflows/ci.yml/badge.svg)](https://github.com/Kohei-Wada/ttymap/actions/workflows/ci.yml)
 
-**Terminal-native scriptable globe.** Mapbox Vector Tiles rendered as Unicode Braille with ANSI 256-color, on top of a first-class Lua plugin runtime — real-time data overlays, animated camera tours, scientific computations, and a small "scriptable scenes" engine (animation + coroutine scheduler) that turns ttymap into a programmable canvas for spatial data.
+**Terminal-native scriptable globe.** Mapbox Vector Tiles rendered as Unicode Braille or sixel graphics with ANSI 256-color, on top of a first-class Lua plugin runtime — real-time data overlays, animated camera tours, scientific computations, and a small "scriptable scenes" engine (animation + coroutine scheduler) that turns ttymap into a programmable canvas for spatial data.
 
 > ⚠️ **Work in progress.** Stable enough to use daily, but APIs (CLI flags, Lua surface, config schema) may change without notice during the WIP phase.
 
@@ -27,13 +27,13 @@ Tokyo zoomed in with the wiki panel open:
 
 ## What you get
 
-- **Map core** — MVT decoding, Mercator projection, Braille rendering at 2×4 sub-pixels per cell, ANSI 256-color, per-feature spatial indexing (R-tree). The original `mapscii`-style terminal viewer is here as one component.
+- **Map core** — MVT decoding, Mercator projection, Braille rendering at 2×4 sub-pixels per cell, optional sixel output for graphics-capable terminals, ANSI 256-color, per-feature spatial indexing (R-tree). The original `mapscii`-style terminal viewer is here as one component.
 - **Vim-style navigation** — `hjkl` pan, `b`/`w` fast pan, `C-u`/`C-d` half-screen pan, `a`/`z` zoom, `gg` world view, `0` reset, mouse drag + scroll.
 - **Command palette** — `:` for actions, `/` for Nominatim location search.
 - **Lua plugin runtime** — every in-tree feature is a Lua script under `runtime/lua/plugin/`; user plugins go in `~/.config/ttymap/lua/plugin/` (Neovim-style stem-dedup).
 - **Lua-based config** — `~/.config/ttymap/init.lua`, with conditional / computed values (the killer feature over TOML).
 - **Scriptable scenes** — `ttymap.animation.fly_to` (frame-based pan/zoom) + `ttymap.director` (coroutine scheduler with `fly` / `wait` / `tween` primitives). Plugins can choreograph multi-step camera + overlay sequences as procedural Lua.
-- **Headless snapshot** — `ttymap snap …` writes the current view as ANSI text for dashboards / cron / pipes.
+- **Headless snapshot** — `ttymap snap …` writes the current view as ANSI text or sixel for dashboards / cron / pipes.
 
 ## Bundled plugins
 
@@ -110,9 +110,10 @@ Installs `~/.cargo/bin/ttymap` + `~/.local/share/ttymap/` (bundled runtime). Sin
 **Interactive:**
 
 ```bash
-ttymap                                       # default position
+ttymap                                       # default position (auto-selects sixel when supported)
 ttymap --lat 35.68 --lon 139.76 --zoom 10    # Tokyo
 ttymap --style bright                        # bright theme
+ttymap --render-mode braille                 # force text-mode rendering
 ```
 
 For "jump to my current location" use the bundled `here` plugin from the `:` palette — it does an IP-geolocation lookup on demand and flies the camera over.
@@ -120,11 +121,12 @@ For "jump to my current location" use the bundled `here` plugin from the `:` pal
 **Headless snapshot:**
 
 ```bash
-ttymap snap --lat 35.68 --lon 139.76 --zoom 12               # → stdout
-ttymap snap --lat 35.68 --lon 139.76 --zoom 12 -o tokyo.ans  # → file
+ttymap snap --lat 35.68 --lon 139.76 --zoom 12                    # → ANSI stdout
+ttymap snap --lat 35.68 --lon 139.76 --zoom 12 --format sixel     # → sixel stdout
+ttymap snap --lat 35.68 --lon 139.76 --zoom 12 -o tokyo.ans       # → file
 ```
 
-`snap` emits raw xterm-256 ANSI; `cat` the file in any compatible terminal or pipe to `less -R`.
+`snap` emits raw xterm-256 ANSI by default; pass `--format sixel` for sixel-capable terminals.
 
 Press `?` in interactive mode for the live keymap cheatsheet.
 
@@ -172,7 +174,7 @@ CI runs on Linux, macOS, and Windows for every push (see [`.github/workflows/ci.
 ### Troubleshooting
 
 - **Windows: install via `cargo` directly** — `make install` assumes a POSIX shell. Until the Makefile grows a Windows path, build with `cargo build --release` and copy `target/release/ttymap.exe` plus the `ttymap-tui/runtime/` directory to wherever you want them. Set `TTYMAP_RUNTIME=path\to\runtime` if you don't place it under the platform-default data dir (`%APPDATA%\ttymap\runtime`).
-- **Windows: use Windows Terminal, not legacy ConHost** — Braille glyphs and xterm-256 colors need a font with full Braille coverage (Cascadia Mono works) and a terminal that respects 256-color ANSI. Legacy ConHost (the default `cmd.exe` window pre-Windows 11) renders Braille as boxes and clamps to 16 colors.
+- **Windows: use Windows Terminal, not legacy ConHost** — Braille glyphs and xterm-256 colors need a font with full Braille coverage (Cascadia Mono works) and a terminal that respects 256-color ANSI. Legacy ConHost (the default `cmd.exe` window pre-Windows 11) renders Braille as boxes and clamps to 16 colors. If your terminal supports sixel, ttymap now prefers that path automatically.
 - **macOS: tile cache & exported frames live under `~/Library/Caches/ttymap` and `~/Library/Application Support/ttymap`** — different from Linux's XDG paths. The `directories` crate handles this transparently; only relevant if you script around the cache.
 - **Mouse drag/scroll on Windows** — works in Windows Terminal; some third-party emulators don't forward mouse events. Toggle off via config if your terminal traps them.
 

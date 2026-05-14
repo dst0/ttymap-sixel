@@ -63,6 +63,10 @@ pub mod cli;
 /// plugin disable list).
 pub mod config;
 
+/// Terminal graphics helpers — render-mode selection, sixel
+/// serialisation, and post-draw sixel painting.
+pub mod terminal_graphics;
+
 /// Theme — binary-side ratatui adapter (`UiTheme`) and semantic-tag
 /// resolver (`StyleKind`). The colour data (`ColorPalette`,
 /// `ThemeId`, `DARK`/`BRIGHT`) lives in [`ttymap_engine::theme`] and

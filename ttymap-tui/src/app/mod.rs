@@ -52,6 +52,9 @@ use crate::event::{Event, EventBus};
 pub use crate::input::KeybindingOverrides;
 use crate::input::{KeyMap, MouseAdapter};
 use crate::lua::{LuaHandle, LuaSubsystem};
+use crate::terminal_graphics::{
+    ActiveRenderMode, buffer_overlays, paint_sixel_frame, terminal_cell_pixel_size,
+};
 use crate::theme::{ThemeId, UiTheme};
 use ttymap_engine::map::MapAction;
 use ttymap_engine::map::render::frame::MapFrame;
@@ -86,6 +89,7 @@ pub struct App {
     /// because `main` reads it to align the input thread / frame
     /// timer cadences.
     poll_timeout: Duration,
+    render_mode: ActiveRenderMode,
 }
 
 impl App {
@@ -104,6 +108,7 @@ impl App {
         map: EngineHandle,
         builtin_activations: Vec<crate::compositor::Activation>,
         lua: LuaSubsystem,
+        render_mode: ActiveRenderMode,
     ) -> Self {
         let LuaSubsystem {
             handle: lua,
@@ -143,6 +148,7 @@ impl App {
             pending_events: Vec::new(),
             bus,
             poll_timeout: Duration::from_millis(config.runtime.poll_timeout_ms),
+            render_mode,
         }
     }
 
@@ -442,6 +448,7 @@ impl App {
         let ctx = self.context();
         let inputs = ui::DrawInputs {
             map_frame: self.map_frame.as_ref(),
+            render_braille: self.render_mode == ActiveRenderMode::Braille,
             compositor: &self.compositor,
             lua: &self.lua,
             theme: &self.ui_theme,
@@ -450,7 +457,21 @@ impl App {
             sidebar_open: self.sidebar.open,
             sidebar_width: self.sidebar.width,
         };
-        terminal.draw(|f| ui::draw(f, inputs))?;
+        let completed = terminal.draw(|f| ui::draw(f, inputs))?;
+        if self.render_mode == ActiveRenderMode::Sixel
+            && let Some(map_frame) = self.map_frame.as_ref()
+        {
+            let map_inner =
+                ui::map_inner_area(completed.area, self.sidebar.open, self.sidebar.width);
+            let overlays = buffer_overlays(completed.buffer, map_inner);
+            paint_sixel_frame(
+                &mut std::io::stdout(),
+                map_frame,
+                map_inner,
+                terminal_cell_pixel_size(),
+                &overlays,
+            )?;
+        }
         Ok(())
     }
 }

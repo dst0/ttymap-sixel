@@ -4,13 +4,15 @@ use ttymap_tui::app::frame_timer::FrameTimer;
 use ttymap_tui::cli::Command as Subcommand;
 use ttymap_tui::config::Config;
 use ttymap_tui::input::thread::InputHandle;
+use ttymap_tui::terminal_graphics::{RenderMode, resolve_render_mode};
 
 #[derive(Parser)]
 #[command(
     name = "ttymap",
-    about = "Terminal-native scriptable globe — Mapbox Vector Tiles as Braille, scripted with Lua",
+    about = "Terminal-native scriptable globe — Mapbox Vector Tiles as Braille or sixel, scripted with Lua",
     long_about = "ttymap is a terminal-native scriptable globe written in Rust.\n\
         It renders Mapbox Vector Tiles (MVT/protobuf) as Unicode Braille characters\n\
+        or sixel graphics depending on terminal support\n\
         with ANSI 256-color in your terminal, on top of a Lua plugin runtime\n\
         for live data overlays, animated camera tours, and custom map UIs.\n\n\
         Inspired by and based on mapscii (https://github.com/rastapasta/mapscii).\n\n\
@@ -40,6 +42,10 @@ struct Cli {
     /// Style preset (dark, bright)
     #[arg(long)]
     style: Option<String>,
+
+    /// Terminal render mode.
+    #[arg(long, value_enum, default_value_t = RenderMode::Auto)]
+    render_mode: RenderMode,
 
     /// Write debug logs to ~/.local/state/ttymap/ttymap.log. Optional
     /// level argument: `--log` alone is `debug`; `--log info` /
@@ -172,7 +178,15 @@ fn run_event_loop(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mut builtin_activations: Vec<ttymap_tui::compositor::Activation> = Vec::new();
     ttymap_tui::palette::install(&keymap, &mut builtin_activations, lua.registry.clone());
 
-    let mut app = App::new(config, keymap, theme_id, map, builtin_activations, lua);
+    let mut app = App::new(
+        config,
+        keymap,
+        theme_id,
+        map,
+        builtin_activations,
+        lua,
+        resolve_render_mode(cli.render_mode),
+    );
 
     let mut terminal = ratatui::init();
     crossterm::execute!(std::io::stdout(), crossterm::event::EnableMouseCapture)?;

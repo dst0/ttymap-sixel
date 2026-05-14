@@ -7,7 +7,7 @@
 //! module is now a thin layout + draw routine.
 
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -29,6 +29,7 @@ use ttymap_engine::map::render::overlay::UserPolyline;
 /// give related fields a single place to grow.
 pub struct DrawInputs<'a> {
     pub map_frame: Option<&'a MapFrame>,
+    pub render_braille: bool,
     pub compositor: &'a Compositor,
     pub lua: &'a LuaHandle,
     pub theme: &'a UiTheme,
@@ -41,6 +42,7 @@ pub struct DrawInputs<'a> {
 pub fn draw(f: &mut Frame, inputs: DrawInputs<'_>) {
     let DrawInputs {
         map_frame,
+        render_braille,
         compositor,
         lua,
         theme,
@@ -93,7 +95,13 @@ pub fn draw(f: &mut Frame, inputs: DrawInputs<'_>) {
     let map_inner = map_block.inner(map_area);
     f.render_widget(map_block, map_area);
     if let Some(map_frame) = map_frame {
-        f.render_widget(super::frame_widget::MapFrameWidget(map_frame), map_inner);
+        f.render_widget(
+            super::frame_widget::MapFrameWidget {
+                frame: map_frame,
+                enabled: render_braille,
+            },
+            map_inner,
+        );
 
         // World-space overlays + always-on chrome from components on
         // the compositor (wiki markers, info bar, scale, attribution).
@@ -177,4 +185,16 @@ fn build_hints(compositor: &Compositor) -> Vec<(&'static str, &'static str)> {
         }
     }
     hints
+}
+
+pub fn map_inner_area(area: Rect, sidebar_open: bool, sidebar_width: u16) -> Rect {
+    let chunks = Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(area);
+    let main_area = chunks[0];
+    let map_area = if sidebar_open && main_area.width > sidebar_width + 4 {
+        Layout::horizontal([Constraint::Length(sidebar_width), Constraint::Min(1)]).split(main_area)
+            [1]
+    } else {
+        main_area
+    };
+    Block::new().borders(Borders::ALL).inner(map_area)
 }
